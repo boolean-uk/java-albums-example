@@ -1,21 +1,5 @@
-Album
-album_id PK Serial
-title TEXT 
-year INTEGER
-rating INTEGER
-artist_id INTEGER
-record_company_id INTEGER
+# Music Library
 
+## Note
 
-
-Artist
-artist_id PK Serial
-name TEXT
-number of members INTEGER
-still performing BOOLEAN
-
-RecordCompany
-record_company_id PK Serial
-name TEXT
-location TEXT
-email TEXT
+You will need to add an `application.yml` file to the resources folder with the usual entries in, to make this repo work correctly, along with adding some Artists, Record Companies and Albums.
