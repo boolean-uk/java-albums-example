@@ -2,6 +2,7 @@ package com.booleanuk.music.controller;
 
 import com.booleanuk.music.model.Artist;
 import com.booleanuk.music.repository.ArtistRepository;
+import com.booleanuk.music.response.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,41 +18,73 @@ public class ArtistController {
     private ArtistRepository artistRepository;
 
     @GetMapping
-    public List<Artist> getAllArtists() {
-        return this.artistRepository.findAll();
+    public ResponseEntity<ArtistListResponse> getAllArtists() {
+        ArtistListResponse artistListResponse = new ArtistListResponse();
+        artistListResponse.set(this.artistRepository.findAll());
+        return ResponseEntity.ok(artistListResponse);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Artist> getArtistById(@PathVariable int id) {
-        Artist artist = null;
-        artist = this.artistRepository.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "That ID doesn't match any stored artists")
-        );
-        return ResponseEntity.ok(artist);
+    public ResponseEntity<Response<?>> getArtistById(@PathVariable int id) {
+        Artist artist = this.artistRepository.findById(id).orElse(null);
+        if (artist == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
+        ArtistResponse artistResponse = new ArtistResponse();
+        artistResponse.set(artist);
+        return ResponseEntity.ok(artistResponse);
     }
 
     @PostMapping
-    public ResponseEntity<Artist> createArtist(@RequestBody Artist artist) {
-        return new ResponseEntity<>(this.artistRepository.save(artist), HttpStatus.CREATED);
+    public ResponseEntity<Response<?>> createArtist(@RequestBody Artist artist) {
+        ArtistResponse artistResponse = new ArtistResponse();
+        try {
+            artistResponse.set(this.artistRepository.save(artist));
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("bad request");
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+        return new ResponseEntity<>(artistResponse, HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Artist> updateArtist(@PathVariable int id, @RequestBody Artist artist) {
-        Artist artistToUpdate = this.artistRepository.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Only existing artists can be updated")
-        );
+    public ResponseEntity<Response<?>> updateArtist(@PathVariable int id, @RequestBody Artist artist) {
+        Artist artistToUpdate = null;
+        try {
+            artistToUpdate = this.artistRepository.findById(id).orElse(null);
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("bad request");
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+        if (artistToUpdate == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
         artistToUpdate.setName(artistToUpdate.getName());
         artistToUpdate.setNumberOfMembers(artist.getNumberOfMembers());
         artistToUpdate.setStillPerforming(artist.isStillPerforming());
-        return new ResponseEntity<>(this.artistRepository.save(artistToUpdate), HttpStatus.CREATED);
+        artistToUpdate = this.artistRepository.save(artistToUpdate);
+        ArtistResponse artistResponse = new ArtistResponse();
+        artistResponse.set(artistToUpdate);
+        return new ResponseEntity<>(artistResponse, HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Artist> deleteArtist(@PathVariable int id) {
-        Artist artistToDelete = this.artistRepository.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Only existing artists can be deleted")
-        );
+    public ResponseEntity<Response<?>> deleteArtist(@PathVariable int id) {
+        Artist artistToDelete = this.artistRepository.findById(id).orElse(null);
+        if (artistToDelete == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
         this.artistRepository.delete(artistToDelete);
-        return ResponseEntity.ok(artistToDelete);
+        ArtistResponse artistResponse = new ArtistResponse();
+        artistResponse.set(artistToDelete);
+        return ResponseEntity.ok(artistResponse);
     }
 }
