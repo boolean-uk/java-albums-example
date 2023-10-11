@@ -82,6 +82,7 @@ public class ArtistController {
             error.set("not found");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
         }
+        artistToDelete.setAlbums(null);
         this.artistRepository.delete(artistToDelete);
         ArtistResponse artistResponse = new ArtistResponse();
         artistResponse.set(artistToDelete);
