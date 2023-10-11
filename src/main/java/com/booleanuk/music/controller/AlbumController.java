@@ -6,6 +6,10 @@ import com.booleanuk.music.model.RecordCompany;
 import com.booleanuk.music.repository.AlbumRepository;
 import com.booleanuk.music.repository.ArtistRepository;
 import com.booleanuk.music.repository.RecordCompanyRepository;
+import com.booleanuk.music.response.AlbumListResponse;
+import com.booleanuk.music.response.AlbumResponse;
+import com.booleanuk.music.response.ErrorResponse;
+import com.booleanuk.music.response.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,57 +29,117 @@ public class AlbumController {
     private RecordCompanyRepository recordCompanyRepository;
 
     @GetMapping
-    public List<Album> getAllAlbums() {
-        return this.albumRepository.findAll();
+    public ResponseEntity<AlbumListResponse> getAllAlbums() {
+        AlbumListResponse albumListResponse = new AlbumListResponse();
+        albumListResponse.set(this.albumRepository.findAll());
+        return ResponseEntity.ok(albumListResponse);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Album> getAlbumById(@PathVariable int id) {
-        Album album = null;
-        album = this.albumRepository.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "That ID doesn't match any stored albums")
-        );
-        return ResponseEntity.ok(album);
+    public ResponseEntity<Response<?>> getAlbumById(@PathVariable int id) {
+        Album album = this.albumRepository.findById(id).orElse(null);
+        if (album == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
+        AlbumResponse albumResponse = new AlbumResponse();
+        albumResponse.set(album);
+        return ResponseEntity.ok(albumResponse);
     }
 
     @PostMapping
-    public ResponseEntity<Album> createAlbum(@RequestBody Album album) {
-        Artist theArtist = this.artistRepository.findById(album.getArtist().getId()).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "I'm sorry that artist doesn't appear to exist.")
-        );
+    public ResponseEntity<Response<?>> createAlbum(@RequestBody Album album) {
+        Artist theArtist = this.artistRepository.findById(album.getArtist().getId()).orElse(null);
+        if (theArtist == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("artist not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
         album.setArtist(theArtist);
-        RecordCompany theCompany = this.recordCompanyRepository.findById(album.getRecordCompany().getId()).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "I'm sorry that record company doesn't appear to exist.")
-        );
+        RecordCompany theCompany = this.recordCompanyRepository.findById(album.getRecordCompany().getId()).orElse(null);
+        if (theCompany == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("record company not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
         album.setRecordCompany(theCompany);
-        return new ResponseEntity<>(this.albumRepository.save(album), HttpStatus.CREATED);
+        AlbumResponse albumResponse = new AlbumResponse();
+        try {
+            albumResponse.set(this.albumRepository.save(album));
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("bad request");
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+        return new ResponseEntity<>(albumResponse, HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Album> updateAlbum(@PathVariable int id, @RequestBody Album album) {
-        Album albumToUpdate = this.albumRepository.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Only existing albums can be updated")
-        );
+    public ResponseEntity<Response<?>> updateAlbum(@PathVariable int id, @RequestBody Album album) {
+        Album albumToUpdate = this.albumRepository.findById(id).orElse(null);
+        if (albumToUpdate == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+
+        }
         albumToUpdate.setTitle(album.getTitle());
         albumToUpdate.setYear(album.getYear());
         albumToUpdate.setRating(album.getRating());
-        Artist theArtist = this.artistRepository.findById(album.getArtist().getId()).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "I'm sorry that artist doesn't appear to exist.")
-        );
+
+        Artist theArtist = null;
+        try {
+            theArtist = this.artistRepository.findById(album.getArtist().getId()).orElse(null);
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("bad request");
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+        if (theArtist == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("artist not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
         albumToUpdate.setArtist(theArtist);
-        RecordCompany theCompany = this.recordCompanyRepository.findById(album.getRecordCompany().getId()).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "I'm sorry that record company doesn't appear to exist.")
-        );
+
+        RecordCompany theCompany = null;
+        try {
+            theCompany = this.recordCompanyRepository.findById(album.getRecordCompany().getId()).orElse(null);
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("bad request");
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+        if (theCompany == null){
+            ErrorResponse error = new ErrorResponse();
+            error.set("company not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
         albumToUpdate.setRecordCompany(theCompany);
-        return new ResponseEntity<>(this.albumRepository.save(albumToUpdate), HttpStatus.CREATED);
+        try {
+            albumToUpdate = this.albumRepository.save(albumToUpdate);
+        } catch (Exception e) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("bad request");
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+        AlbumResponse albumResponse = new AlbumResponse();
+        albumResponse.set(albumToUpdate);
+        return new ResponseEntity<>(albumResponse, HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Album> deleteAlbum(@PathVariable int id) {
-        Album albumToDelete = this.albumRepository.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Only existing albums can be deleted")
-        );
+    public ResponseEntity<Response<?>> deleteAlbum(@PathVariable int id) {
+        Album albumToDelete = this.albumRepository.findById(id).orElse(null);
+        if (albumToDelete == null) {
+            ErrorResponse error = new ErrorResponse();
+            error.set("not found");
+            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
         this.albumRepository.delete(albumToDelete);
-        return ResponseEntity.ok(albumToDelete);
+        AlbumResponse albumResponse = new AlbumResponse();
+        albumResponse.set(albumToDelete);
+        return ResponseEntity.ok(albumResponse);
     }
 }
